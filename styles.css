@@ -1,0 +1,55 @@
+:root{
+  --left-width:320px;
+  --bg:#121316;
+  --card:#1b1d22;
+  --muted:#9aa0a6;
+  --accent:#4fc3f7;
+}
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+  background:linear-gradient(180deg,#0f1113,#0b0c0d);
+  color:#e8eef2;
+}
+.app{display:flex; height:100vh;}
+.left{
+  flex:1;
+  background:var(--card);
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}.left header h1{margin:0; font-size:18px}
+.sensors{background:transparent; padding:8px 0}
+.sensor-row{display:flex; gap:8px}
+.sensor{flex:1; background:rgba(255,255,255,0.02); padding:8px; border-radius:6px}
+.sensor .label{font-size:12px; color:var(--muted)}
+.sensor .value{font-weight:600; margin-top:6px}
+.logs{flex:1; display:flex; flex-direction:column}
+.charts{flex:1; display:flex; flex-direction:column}
+.charts-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.chart-card{background:rgba(255,255,255,0.02); padding:8px; border-radius:8px; display:flex; flex-direction:column}
+.chart-title{font-size:13px; color:var(--muted); margin-bottom:6px}
+.chart-card canvas{width:100% !important; height:140px !important}
+.chart-controls{display:flex; gap:8px; align-items:center; margin-top:8px}
+.status{margin-left:auto; color:var(--muted); font-size:13px}
+
+.right{flex:1; display:flex; flex-direction:column; gap:8px; padding:12px}
+.top-camera, .bottom-camera{flex:1; background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); border-radius:8px; display:flex; flex-direction:column}
+.cam-header{padding:8px 12px; color:var(--muted); font-size:13px}
+.cam-wrap{flex:1; display:flex; align-items:center; justify-content:center; padding:8px}
+.cam-wrap img{max-width:100%; max-height:100%; border-radius:6px; object-fit:contain; background:#000}
+.cam-wrap canvas{max-width:100%; max-height:100%; border-radius:6px; background:#000; display:block}
+.right-controls{display:flex; gap:8px; align-items:center; padding:8px}
+.right-controls label{flex:1; font-size:13px; display:flex; gap:8px; align-items:center}
+.right-controls input{flex:1; padding:6px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.04); background:rgba(255,255,255,0.02); color:inherit}
+.buttons{display:flex; gap:8px}
+.buttons button{padding:6px 10px; border-radius:6px; background:rgba(79,195,247,0.12); border:1px solid rgba(79,195,247,0.18); color:var(--accent)}
+
+@media (max-width:900px){
+  .app{flex-direction:column}
+  .left{width:100%; height:260px;}
+  .right{padding:8px}
+}

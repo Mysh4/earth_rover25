@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Панель робота</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="left">
+        <header>
+          <h1>Робот-машинка</h1>
+        </header>
+
+        <section class="sensors">
+          <h2>Датчики</h2>
+          <div class="sensor-row">
+            <div class="sensor">
+              <div class="label">Ультразвук</div>
+              <div id="sensor-ultrasonic" class="value">— cm</div>
+            </div>
+            <div class="sensor">
+              <div class="label">Температура</div>
+              <div id="sensor-temp" class="value">— °C</div>
+            </div>
+          </div>
+          <div class="sensor-row">
+            <div class="sensor">
+              <div class="label">Влажность</div>
+              <div id="sensor-voltage" class="value">— %</div>
+            </div>
+            <div class="sensor">
+              <div class="label">Пройденные чекпоинты (холл)</div>
+              <div id="sensor-speed" class="value">—</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="charts">
+          <h2>Временные графики</h2>
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-title">Температура (°C)</div>
+              <canvas id="chart-temp"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Влажность (%)</div>
+              <canvas id="chart-humidity"></canvas>
+            </div>
+          </div>
+          <div class="chart-controls">
+            <label><input id="chk-sim" type="checkbox" checked /> Симуляция</label>
+            <div id="status" class="status">Готово</div>
+          </div>
+        </section>
+      </aside>
+
+      <main class="right">
+        <div class="top-camera">
+          <div class="cam-header">Спутник (внешний вид)</div>
+          <div class="cam-wrap">
+            <img id="img-sat" src="https://via.placeholder.com/800x450?text=Satellite+View" alt="Satellite view" />
+          </div>
+        </div>
+
+        <div class="bottom-camera">
+          <div class="cam-header">ESP32-CAM (на роботе)</div>
+            <div class="cam-wrap">
+              <img id="img-esp" src="https://via.placeholder.com/800x450?text=ESP32-CAM" alt="ESP32-CAM view" />
+              <canvas id="canvas-esp" style="display:none"></canvas>
+            </div>
+        </div>
+
+        <div class="right-controls">
+          <label>Satellite URL: <input id="url-sat" placeholder="https://..." /></label>
+          <label>ESP32 URL: <input id="url-esp" placeholder="http://esp32-cam.local:81/stream" /></label>
+          <label style="white-space:nowrap"><input id="chk-mjpeg" type="checkbox" /> MJPEG stream</label>
+          <div class="buttons">
+            <button id="btn-set">Установить</button>
+            <button id="btn-refresh">Обновить изображения</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
