@@ -1,5 +1,4 @@
 (() => {
-  const chkSim = document.getElementById('chk-sim');
   const statusEl = document.getElementById('status');
 
   const sensorUltr = document.getElementById('sensor-ultrasonic');
@@ -11,68 +10,22 @@
   const imgEsp = document.getElementById('img-esp');
   const canvasEsp = document.getElementById('canvas-esp');
   const urlSat = document.getElementById('url-sat');
-  const urlEsp = document.getElementById('url-esp');
   const chkMJPEG = document.getElementById('chk-mjpeg');
   const btnSet = document.getElementById('btn-set');
   const btnRefresh = document.getElementById('btn-refresh');
 
-  let simInterval = null;
-
-  function appendLog(text){
-    const msg = `[${new Date().toLocaleTimeString()}] ${text}`;
-    console.log(msg);
-    if(statusEl) statusEl.textContent = text;
-  }
-
-  function random(min, max){ return Math.round((Math.random()*(max-min)+min)*10)/10 }
-
-  // hallCount stores cumulative number of magnetic hall checkpoints passed
-  let hallCount = 0;
+  // Встроенный URL для ESP32
+  const ESP32_URL = 'http://esp32-cam.local:81/stream';
+  const DATA_URL = 'http://192.168.0.165:80/getHM';
 
   // history buffers and Chart.js setup (temperature + humidity only)
   const maxPoints = 60;
   const history = { labels: [], temp: [], humidity: [] };
 
-  function updateSensors(){
-    const t = random(15,40);
-    const h = random(20,90);
-    // update sensor displays
-    sensorTemp.textContent = t + ' °C';
-    sensorVolt.textContent = h + ' %';
-    sensorSpeed.textContent = hallCount;
-
-    const label = new Date().toLocaleTimeString();
-    history.labels.push(label);
-    history.temp.push(t);
-    history.humidity.push(h);
-
-    // trim
-    if(history.labels.length > maxPoints){ history.labels.shift(); history.temp.shift(); history.humidity.shift(); }
-
-    // update charts if ready
-    if(window.charts){
-      try{
-        window.charts.temp.data.labels = history.labels;
-        window.charts.temp.data.datasets[0].data = history.temp;
-        window.charts.temp.update('none');
-
-        window.charts.humidity.data.labels = history.labels;
-        window.charts.humidity.data.datasets[0].data = history.humidity;
-        window.charts.humidity.update('none');
-      }catch(e){console.warn(e)}
-    }
-  }
-
-  function simulateStep(){
-    const actions = ['движение вперёд','поворот влево','поворот вправо','остановка','объезд препятствия','ускорение'];
-    const a = actions[Math.floor(Math.random()*actions.length)];
-    appendLog('Действие: ' + a);
-    // occasionally increment hall checkpoint counter (simulate hall sensor trigger)
-    if(Math.random() < 0.35){
-      hallCount += Math.floor(Math.random()*2) + 1; // +1 or +2
-      appendLog('Чекпоинт (холл) пройден. Всего: ' + hallCount);
-    }
-    updateSensors();
+  function appendLog(text){
+    const msg = `[${new Date().toLocaleTimeString()}] ${text}`;
+    console.log(msg);
+    if(statusEl) statusEl.textContent = text;
   }
 
   // Chart.js initialization
@@ -95,27 +48,80 @@
     };
   }
 
-  function startSim(){
-    if(simInterval) return;
-    simInterval = setInterval(()=>{ if(chkSim.checked) simulateStep(); }, 2000);
+  async function fetchAndUpdateData(){
+    try{
+      const resp = await fetch(DATA_URL);
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      const text = await resp.text();
+      
+      // Парсим строку формата "23 | 56"
+      const parts = text.split('|').map(s => s.trim());
+      const t = parseFloat(parts[0]) || 0;
+      const h = parseFloat(parts[1]) || 0;
+      
+      // update sensor displays
+      sensorTemp.textContent = t.toFixed(1) + ' °C';
+      sensorVolt.textContent = h.toFixed(1) + ' %';
+
+      const label = new Date().toLocaleTimeString();
+      history.labels.push(label);
+      history.temp.push(t);
+      history.humidity.push(h);
+
+      // trim
+      if(history.labels.length > maxPoints){ 
+        history.labels.shift(); 
+        history.temp.shift(); 
+        history.humidity.shift(); 
+      }
+
+      // update charts if ready
+      if(window.charts){
+        try{
+          window.charts.temp.data.labels = history.labels;
+          window.charts.temp.data.datasets[0].data = history.temp;
+          window.charts.temp.update('none');
+
+          window.charts.humidity.data.labels = history.labels;
+          window.charts.humidity.data.datasets[0].data = history.humidity;
+          window.charts.humidity.update('none');
+        }catch(e){console.warn(e)}
+      }
+    }catch(err){
+      console.warn('Data fetch error:', err.message);
+    }
   }
 
-  function stopSim(){ if(simInterval){clearInterval(simInterval); simInterval=null} }
+  // Start periodic data fetching
+  let dataInterval = null;
+  function startDataPolling(){
+    if(dataInterval) return;
+    fetchAndUpdateData(); // fetch immediately
+    dataInterval = setInterval(fetchAndUpdateData, 2000); // then every 2 seconds
+  }
+
+  function stopDataPolling(){
+    if(dataInterval){ clearInterval(dataInterval); dataInterval = null }
+  }
+
+  function appendLog(text){
+    const msg = `[${new Date().toLocaleTimeString()}] ${text}`;
+    console.log(msg);
+    if(statusEl) statusEl.textContent = text;
+  }
 
   // clear/copy log buttons removed — no-op if present
 
   btnSet.addEventListener('click', ()=>{
     if(urlSat.value) imgSat.src = urlSat.value;
-    if(urlEsp.value){
-      if(chkMJPEG && chkMJPEG.checked){
-        // start MJPEG streaming to canvas
-        startESPStream(urlEsp.value);
-      }else{
-        stopESPStream();
-        canvasEsp.style.display = 'none';
-        imgEsp.style.display = '';
-        imgEsp.src = urlEsp.value;
-      }
+    if(chkMJPEG && chkMJPEG.checked){
+      // start MJPEG streaming to canvas
+      startESPStream(ESP32_URL);
+    }else{
+      stopESPStream();
+      canvasEsp.style.display = 'none';
+      imgEsp.style.display = '';
+      imgEsp.src = ESP32_URL;
     }
   });
 
@@ -125,9 +131,9 @@
     if(chkMJPEG && chkMJPEG.checked){
       // restart stream to force reconnect
       stopESPStream();
-      startESPStream(urlEsp.value || imgEsp.src);
+      startESPStream(ESP32_URL);
     }else{
-      imgEsp.src = (urlEsp.value || imgEsp.src).split('?')[0] + '?_t=' + Date.now();
+      imgEsp.src = ESP32_URL.split('?')[0] + '?_t=' + Date.now();
     }
   });
 
@@ -138,12 +144,12 @@
         // switch to canvas streaming
         canvasEsp.style.display = '';
         imgEsp.style.display = 'none';
-        if(urlEsp.value) startESPStream(urlEsp.value);
+        startESPStream(ESP32_URL);
       }else{
         stopESPStream();
         canvasEsp.style.display = 'none';
         imgEsp.style.display = '';
-        if(urlEsp.value) imgEsp.src = urlEsp.value;
+        imgEsp.src = ESP32_URL;
       }
     });
   }
@@ -222,7 +228,7 @@
         appendLog('MJPEG stream error: ' + (err.message||err));
         // try reconnect after delay
         if(espRunning){
-          setTimeout(()=>{ if(chkMJPEG.checked) startESPStream(url); }, 1500);
+          setTimeout(()=>{ if(chkMJPEG.checked) startESPStream(ESP32_URL); }, 1500);
         }
       }
     }finally{
@@ -238,27 +244,24 @@
     espRunning = false;
   }
 
-  // Load from query params if provided: ?sat=...&esp=...
+  // Load from query params if provided: ?sat=...
   (function loadFromQuery(){
     try{
       const qp = new URLSearchParams(location.search);
       const s = qp.get('sat');
-      const e = qp.get('esp');
       if(s){ imgSat.src = s; urlSat.value = s }
-      if(e){ imgEsp.src = e; urlEsp.value = e }
     }catch(err){console.warn(err)}
   })();
 
-  // initialize charts and sensors, then start simulation
+  // Initialize charts, then start data polling
   initCharts();
-  updateSensors();
-  startSim();
+  startDataPolling();
 
-  // create a couple initial log lines
+  // create initial log lines
   appendLog('Панель запущена');
-  appendLog('Ожидание данных от робота...');
+  appendLog('Получение данных с робота...');
 
   // clean up on unload
-  window.addEventListener('beforeunload', ()=>stopSim());
-  window.addEventListener('unload', ()=>{ stopESPStream(); stopSim(); });
+  window.addEventListener('unload', ()=>{ stopESPStream(); stopDataPolling(); });
 })();
+
