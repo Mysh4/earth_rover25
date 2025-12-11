@@ -54,14 +54,20 @@
       if(!resp.ok) throw new Error('HTTP ' + resp.status);
       const text = await resp.text();
       
-      // Парсим строку формата "23 | 56"
+      // Парсим строку 
       const parts = text.split('|').map(s => s.trim());
       const t = parseFloat(parts[0]) || 0;
       const h = parseFloat(parts[1]) || 0;
+      const mag1 = parseInt(parts[2]) || 0;
+      const mag2 = parseInt(parts[3]) || 0;
       
       // update sensor displays
       sensorTemp.textContent = t.toFixed(1) + ' °C';
       sensorVolt.textContent = h.toFixed(1) + ' %';
+      
+      // Check if magnet detected (if either of last two values is 1)
+      const magnetDetected = mag1 === 1 || mag2 === 1;
+      sensorSpeed.textContent = magnetDetected ? 'обнаружен магнит' : 'магнит не обнаружен';
 
       const label = new Date().toLocaleTimeString();
       history.labels.push(label);
