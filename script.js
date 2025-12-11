@@ -15,7 +15,7 @@
   const btnRefresh = document.getElementById('btn-refresh');
 
   // Встроенный URL для ESP32
-  const ESP32_URL = 'http://esp32-cam.local:81/stream';
+  const ESP32_URL = 'http://192.168.0.165:82/stream';
   const DATA_URL = 'http://192.168.0.165:80/getHM';
 
   // history buffers and Chart.js setup (temperature + humidity only)
