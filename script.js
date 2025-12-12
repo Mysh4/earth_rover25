@@ -414,8 +414,8 @@ async function startSatStream() {
     const resp = await fetch(SAT_URL, {
       method: "POST",
       headers: {
-        "Authorization": "Basic " + btoa(`${CAM_LOGIN}:${CAM_PASSWORD}`),
-        "Content-Type": "multipart/form-data; boundary=client-stream-boundary"
+        "Authorization": 'Digest username="admin", realm="TP-LINK IP-Camera", nonce="d5515fe7182e83cf10f311bb5c067434", uri="/stream", response="ff1a8a03174567284fd70de5e7baa19d", opaque="64943214654649846565646421", qop="auth", nc="00000001", cnonce="3gvk08q1svnzo6n7"',
+        "Content-Type": "multipart/mixed;boundary=--client-stream-boundary--"
       },
       body: SAT_PAYLOAD,
       signal: satAbort.signal
