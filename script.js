@@ -1,273 +1,505 @@
-(() => {
-  const statusEl = document.getElementById('status');
 
-  const sensorUltr = document.getElementById('sensor-ultrasonic');
+// (() => {
+
+//   /* -------------------------------------------------------
+//       CONFIG
+//   ---------------------------------------------------------*/
+
+//   // TP-Link VIGI camera (RTSP → HLS/WebRTC through your proxy)
+//   const CAM_LOGIN = "admin";
+//   const CAM_PASSWORD = "admin1";
+//   const CAM_HOST = "192.168.0.60";
+
+//   const ESP32_MJPEG = "https://192.168.0.60/stream";
+
+//   // This is the REAL RTSP URL (used by the proxy service, NOT by the browser)
+//   const SAT_RTSP = `rtsp://${CAM_LOGIN}:${CAM_PASSWORD}@${CAM_HOST}:554/stream1`;
+
+//   // Your proxy output (HLS/WebRTC)
+//   const SAT_PROXY_URL = "/rtsp-proxy/vigi.m3u8";
+
+//   // ESP32 MJPEG
+//   const ESP32_URL = "http://192.168.0.165:82/stream";
+//   // const ESP32_URL = "https://192.168.0.60/stream";
+//   const DATA_URL  = "http://192.168.0.165:80/getHM";
+
+//   /* -------------------------------------------------------
+//       DOM ELEMENTS
+//   ---------------------------------------------------------*/
+
+//   const sensorTemp = document.getElementById('sensor-temp');
+//   const sensorVolt = document.getElementById('sensor-voltage');
+//   const sensorSpeed = document.getElementById('sensor-speed');
+
+//   const imgSat = document.getElementById('img-sat');
+
+//   const imgEsp = document.getElementById('img-esp');
+//   const canvasEsp = document.getElementById('canvas-esp');
+
+//   const btnSatStream = document.getElementById('btn-sat-stream');
+//   const btnMjpegStream = document.getElementById('btn-mjpeg-stream');
+
+//   /* -------------------------------------------------------
+//       SENSOR DATA POLLING
+//   ---------------------------------------------------------*/
+
+//   let dataInterval = null;
+
+//   async function fetchData() {
+//     try {
+//       const resp = await fetch(DATA_URL);
+//       if (!resp.ok) return;
+
+//       const txt = await resp.text();
+//       const [temp, hum, mag1, mag2] = txt.split("|").map(Number);
+
+//       sensorTemp.textContent = temp.toFixed(1) + " °C";
+//       sensorVolt.textContent = hum.toFixed(1) + " %";
+//       sensorSpeed.textContent =
+//         (mag1 === 1 || mag2 === 1) ? "Magnet detected" : "Magnet not detected";
+
+//     } catch (e) {
+//       console.warn("Sensor polling error:", e);
+//     }
+//   }
+
+//   function startDataPolling() {
+//     if (dataInterval) return;
+//     fetchData();
+//     dataInterval = setInterval(fetchData, 2000);
+//   }
+
+//   /* -------------------------------------------------------
+//       ESP32 MJPEG STREAM
+//   ---------------------------------------------------------*/
+
+//   let espReader = null;
+//   let espAbort = null;
+//   let espRunning = false;
+
+//   async function startESPStream() {
+//     stopESPStream(); // stop previous session
+//     espRunning = true;
+
+//     canvasEsp.style.display = "block";
+//     imgEsp.style.display = "none";
+
+//     try {
+//       espAbort = new AbortController();
+//       const resp = await fetch(ESP32_URL, { signal: espAbort.signal });
+
+//       if (!resp.ok || !resp.body) throw new Error("No MJPEG stream");
+
+//       espReader = resp.body.getReader();
+//       const ctx = canvasEsp.getContext("2d");
+
+//       let buffer = new Uint8Array();
+
+//       while (espRunning) {
+//         const chunk = await espReader.read();
+//         if (chunk.done) throw new Error("Stream ended");
+//         const { value } = chunk;
+
+//         const merged = new Uint8Array(buffer.length + value.length);
+//         merged.set(buffer);
+//         merged.set(value, buffer.length);
+//         buffer = merged;
+
+//         const start = buffer.indexOf(0xFF);
+//         if (start === -1) continue;
+
+//         let end = -1;
+//         for (let i = start; i < buffer.length - 1; i++) {
+//           if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+//             end = i + 1;
+//             break;
+//           }
+//         }
+//         if (end === -1) continue;
+
+//         const frame = buffer.slice(start, end + 1);
+//         buffer = buffer.slice(end + 1);
+
+//         try {
+//           const bitmap = await createImageBitmap(new Blob([frame], { type: "image/jpeg" }));
+//           canvasEsp.width = bitmap.width;
+//           canvasEsp.height = bitmap.height;
+//           ctx.drawImage(bitmap, 0, 0);
+//           bitmap.close();
+//         } catch (e) {
+//           console.log("MJPEG decode error:", e);
+//         }
+//       }
+
+//     } catch (e) {
+//       if (espRunning) {
+//         console.warn("ESP stream dropped → reconnecting...");
+//         setTimeout(startESPStream, 1500);
+//       }
+//     }
+//   }
+
+//   function stopESPStream() {
+//     espRunning = false;
+//     if (espReader) espReader.cancel().catch(() => {});
+//     if (espAbort) espAbort.abort();
+//     canvasEsp.style.display = "none";
+//     imgEsp.style.display = "block";
+//   }
+
+//   /* -------------------------------------------------------
+//       EXTERNAL TP-LINK VIGI STREAM
+//       (browser receives HLS or WebRTC, NOT RTSP)
+//   ---------------------------------------------------------*/
+
+//   let satRunning = false;
+
+//   function startSatStream() {
+//     satRunning = true;
+
+//     // Your proxy must provide HLS/WebRTC
+//     imgSat.src = SAT_PROXY_URL;
+
+//     btnSatStream.textContent = "Stop External Stream";
+//     console.log("VIGI stream started via proxy:", SAT_PROXY_URL);
+//   }
+
+//   function stopSatStream() {
+//     satRunning = false;
+//     imgSat.src = "https://via.placeholder.com/800x450?text=VIGI+Camera";
+//     btnSatStream.textContent = "External Stream";
+//   }
+
+//   /* -------------------------------------------------------
+//       BUTTONS
+//   ---------------------------------------------------------*/
+
+//   btnSatStream.onclick = () => {
+//     satRunning ? stopSatStream() : startSatStream();
+//   };
+
+//   btnMjpegStream.onclick = () => {
+//     espRunning ? stopESPStream() : startESPStream();
+//   };
+
+//   /* -------------------------------------------------------
+//       INIT
+//   ---------------------------------------------------------*/
+
+//   startDataPolling();
+
+//   window.addEventListener("beforeunload", () => {
+//     stopESPStream();
+//     stopSatStream();
+//   });
+
+// })();
+
+(() => {
+
+  /* -------------------------------------------------------
+      CONFIG
+  ---------------------------------------------------------*/
+
+  const CAM_LOGIN = "admin";
+  const CAM_PASSWORD = "admin1";
+  const CAM_HOST = "192.168.0.60";
+
+  const ESP32_URL = "http://192.168.0.165:82/stream";
+  const DATA_URL  = "http://192.168.0.165:80/getHM";
+
+  // SAT POST request payload
+  const SAT_PAYLOAD = `----client-stream-boundary--
+Content-Type: application/json
+Content-Length: 101
+
+{"type":"request","seq":1,"params":{"method":"get","preview":{"channels":[0],"resolutions":["vga"]}}}`;
+
+  const imgSat = document.getElementById('img-sat');
+  const canvasEsp = document.getElementById('canvas-esp');
+  const imgEsp = document.getElementById('img-esp');
+
   const sensorTemp = document.getElementById('sensor-temp');
   const sensorVolt = document.getElementById('sensor-voltage');
   const sensorSpeed = document.getElementById('sensor-speed');
 
-  const imgSat = document.getElementById('img-sat');
-  const imgEsp = document.getElementById('img-esp');
-  const canvasEsp = document.getElementById('canvas-esp');
-  const urlSat = document.getElementById('url-sat');
-  const chkMJPEG = document.getElementById('chk-mjpeg');
-  const btnSet = document.getElementById('btn-set');
-  const btnRefresh = document.getElementById('btn-refresh');
+  const btnSatStream = document.getElementById('btn-sat-stream');
+  const btnMjpegStream = document.getElementById('btn-mjpeg-stream');
 
-  // Встроенный URL для ESP32
-  const ESP32_URL = 'http://192.168.0.165:82/stream';
-  const DATA_URL = 'http://192.168.0.165:80/getHM';
+  /* -------------------------------------------------------
+      SENSOR DATA POLLING
+  ---------------------------------------------------------*/
 
-  // history buffers and Chart.js setup (temperature + humidity only)
-  const maxPoints = 60;
-  const history = { labels: [], temp: [], humidity: [] };
-
-  function appendLog(text){
-    const msg = `[${new Date().toLocaleTimeString()}] ${text}`;
-    console.log(msg);
-    if(statusEl) statusEl.textContent = text;
-  }
-
-  // Chart.js initialization
-  function initCharts(){
-    if(typeof Chart === 'undefined'){
-      console.warn('Chart.js not loaded');
-      return;
-    }
-    const cfg = (label, color) => ({
-      type: 'line',
-      data: { labels: history.labels.slice(), datasets: [{ label, data: [], borderColor: color, backgroundColor: 'transparent', tension: 0.2 }] },
-      options: { animation: false, responsive: true, plugins:{legend:{display:false}}, scales:{x:{display:false}} }
-    });
-    const cT = document.getElementById('chart-temp').getContext('2d');
-    const cH = document.getElementById('chart-humidity').getContext('2d');
-
-    window.charts = {
-      temp: new Chart(cT, cfg('Температура (°C)', '#ffb74d')),
-      humidity: new Chart(cH, cfg('Влажность (%)', '#81c784'))
-    };
-  }
-
-  async function fetchAndUpdateData(){
-    try{
-      const resp = await fetch(DATA_URL);
-      if(!resp.ok) throw new Error('HTTP ' + resp.status);
-      const text = await resp.text();
-      
-      // Парсим строку 
-      const parts = text.split('|').map(s => s.trim());
-      const t = parseFloat(parts[0]) || 0;
-      const h = parseFloat(parts[1]) || 0;
-      const mag1 = parseInt(parts[2]) || 0;
-      const mag2 = parseInt(parts[3]) || 0;
-      
-      // update sensor displays
-      sensorTemp.textContent = t.toFixed(1) + ' °C';
-      sensorVolt.textContent = h.toFixed(1) + ' %';
-      
-      // Check if magnet detected (if either of last two values is 1)
-      const magnetDetected = mag1 === 1 || mag2 === 1;
-      sensorSpeed.textContent = magnetDetected ? 'обнаружен магнит' : 'магнит не обнаружен';
-
-      const label = new Date().toLocaleTimeString();
-      history.labels.push(label);
-      history.temp.push(t);
-      history.humidity.push(h);
-
-      // trim
-      if(history.labels.length > maxPoints){ 
-        history.labels.shift(); 
-        history.temp.shift(); 
-        history.humidity.shift(); 
-      }
-
-      // update charts if ready
-      if(window.charts){
-        try{
-          window.charts.temp.data.labels = history.labels;
-          window.charts.temp.data.datasets[0].data = history.temp;
-          window.charts.temp.update('none');
-
-          window.charts.humidity.data.labels = history.labels;
-          window.charts.humidity.data.datasets[0].data = history.humidity;
-          window.charts.humidity.update('none');
-        }catch(e){console.warn(e)}
-      }
-    }catch(err){
-      console.warn('Data fetch error:', err.message);
-    }
-  }
-
-  // Start periodic data fetching
   let dataInterval = null;
-  function startDataPolling(){
-    if(dataInterval) return;
-    fetchAndUpdateData(); // fetch immediately
-    dataInterval = setInterval(fetchAndUpdateData, 2000); // then every 2 seconds
-  }
 
-  function stopDataPolling(){
-    if(dataInterval){ clearInterval(dataInterval); dataInterval = null }
-  }
-
-  function appendLog(text){
-    const msg = `[${new Date().toLocaleTimeString()}] ${text}`;
-    console.log(msg);
-    if(statusEl) statusEl.textContent = text;
-  }
-
-  // clear/copy log buttons removed — no-op if present
-
-  btnSet.addEventListener('click', ()=>{
-    if(urlSat.value) imgSat.src = urlSat.value;
-    if(chkMJPEG && chkMJPEG.checked){
-      // start MJPEG streaming to canvas
-      startESPStream(ESP32_URL);
-    }else{
-      stopESPStream();
-      canvasEsp.style.display = 'none';
-      imgEsp.style.display = '';
-      imgEsp.src = ESP32_URL;
+  async function fetchData() {
+    try {
+      const resp = await fetch(DATA_URL);
+      if (!resp.ok) return;
+      const txt = await resp.text();
+      const [temp, hum, mag1, mag2] = txt.split("|").map(Number);
+      sensorTemp.textContent = temp.toFixed(1) + " °C";
+      sensorVolt.textContent = hum.toFixed(1) + " %";
+      sensorSpeed.textContent = (mag1 === 1 || mag2 === 1) ? "Magnet detected" : "Magnet not detected";
+    } catch (e) {
+      console.warn("Sensor polling error:", e);
     }
-  });
-
-  btnRefresh.addEventListener('click', ()=>{
-    // force reload by appending timestamp
-    imgSat.src = (urlSat.value || imgSat.src).split('?')[0] + '?_t=' + Date.now();
-    if(chkMJPEG && chkMJPEG.checked){
-      // restart stream to force reconnect
-      stopESPStream();
-      startESPStream(ESP32_URL);
-    }else{
-      imgEsp.src = ESP32_URL.split('?')[0] + '?_t=' + Date.now();
-    }
-  });
-
-  // toggle MJPEG checkbox
-  if(chkMJPEG){
-    chkMJPEG.addEventListener('change', ()=>{
-      if(chkMJPEG.checked){
-        // switch to canvas streaming
-        canvasEsp.style.display = '';
-        imgEsp.style.display = 'none';
-        startESPStream(ESP32_URL);
-      }else{
-        stopESPStream();
-        canvasEsp.style.display = 'none';
-        imgEsp.style.display = '';
-        imgEsp.src = ESP32_URL;
-      }
-    });
   }
 
-  // MJPEG streaming implementation
-  let espAbort = null;
+  function startDataPolling() {
+    if (dataInterval) return;
+    fetchData();
+    dataInterval = setInterval(fetchData, 2000);
+  }
+
+  /* -------------------------------------------------------
+      ESP32 MJPEG STREAM
+  ---------------------------------------------------------*/
+
   let espReader = null;
+  let espAbort = null;
   let espRunning = false;
 
-  async function startESPStream(url){
+  async function startESPStream() {
     stopESPStream();
-    if(!url) return;
-    espAbort = new AbortController();
-    const signal = espAbort.signal;
     espRunning = true;
-    appendLog('Запуск MJPEG-потока...');
-    try{
-      const resp = await fetch(url, {signal});
-      if(!resp.ok || !resp.body){
-        appendLog('Ошибка: не удалось получить поток ('+resp.status+')');
-        espRunning = false;
-        return;
-      }
+    canvasEsp.style.display = "block";
+    imgEsp.style.display = "none";
 
-      const reader = resp.body.getReader();
-      espReader = reader;
-      let buffer = new Uint8Array(0);
+    try {
+      espAbort = new AbortController();
+      const resp = await fetch(ESP32_URL, { signal: espAbort.signal });
+      if (!resp.ok || !resp.body) throw new Error("No MJPEG stream");
+      espReader = resp.body.getReader();
+      const ctx = canvasEsp.getContext("2d");
+      let buffer = new Uint8Array();
 
-      const ctx = canvasEsp.getContext('2d');
+      while (espRunning) {
+        const chunk = await espReader.read();
+        if (chunk.done) throw new Error("Stream ended");
+        const { value } = chunk;
 
-      while(true){
-        const {done, value} = await reader.read();
-        if(done) break;
-        // append
-        const newBuf = new Uint8Array(buffer.length + value.length);
-        newBuf.set(buffer,0);
-        newBuf.set(value, buffer.length);
-        buffer = newBuf;
+        const merged = new Uint8Array(buffer.length + value.length);
+        merged.set(buffer);
+        merged.set(value, buffer.length);
+        buffer = merged;
 
-        // search for JPEG SOI/EOI markers
-        let start = -1, end = -1;
-        for(let i=0;i<buffer.length-1;i++){
-          if(buffer[i]===0xFF && buffer[i+1]===0xD8){ start = i; break }
-        }
-        if(start>=0){
-          for(let j=start+2;j<buffer.length-1;j++){
-            if(buffer[j]===0xFF && buffer[j+1]===0xD9){ end = j+1; break }
+        const start = buffer.indexOf(0xFF);
+        if (start === -1) continue;
+        let end = -1;
+        for (let i = start; i < buffer.length - 1; i++) {
+          if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+            end = i + 1;
+            break;
           }
         }
+        if (end === -1) continue;
 
-        if(start>=0 && end>start){
-          const frame = buffer.slice(start, end+1);
-          // keep remainder
-          buffer = buffer.slice(end+1);
+        const frame = buffer.slice(start, end + 1);
+        buffer = buffer.slice(end + 1);
 
-          try{
-            const blob = new Blob([frame], {type:'image/jpeg'});
-            const bitmap = await createImageBitmap(blob);
-            // resize canvas if needed
-            if(canvasEsp.width !== bitmap.width || canvasEsp.height !== bitmap.height){
-              canvasEsp.width = bitmap.width;
-              canvasEsp.height = bitmap.height;
-            }
-            ctx.drawImage(bitmap, 0, 0);
-            bitmap.close();
-          }catch(err){
-            // ignore individual frame errors
-            console.warn('frame draw error', err);
-          }
+        try {
+          const bitmap = await createImageBitmap(new Blob([frame], { type: "image/jpeg" }));
+          canvasEsp.width = bitmap.width;
+          canvasEsp.height = bitmap.height;
+          ctx.drawImage(bitmap, 0, 0);
+          bitmap.close();
+        } catch (e) {
+          console.log("MJPEG decode error:", e);
         }
       }
-    }catch(err){
-      if(err.name === 'AbortError'){
-        appendLog('MJPEG stream aborted');
-      }else{
-        appendLog('MJPEG stream error: ' + (err.message||err));
-        // try reconnect after delay
-        if(espRunning){
-          setTimeout(()=>{ if(chkMJPEG.checked) startESPStream(ESP32_URL); }, 1500);
-        }
+
+    } catch (e) {
+      if (espRunning) {
+        console.warn("ESP stream dropped → reconnecting...");
+        setTimeout(startESPStream, 1500);
       }
-    }finally{
-      espRunning = false;
     }
   }
 
-  function stopESPStream(){
-    try{
-      if(espReader) { espReader.cancel().catch(()=>{}); espReader = null }
-      if(espAbort){ espAbort.abort(); espAbort = null }
-    }catch(e){}
+  function stopESPStream() {
     espRunning = false;
+    if (espReader) espReader.cancel().catch(() => {});
+    if (espAbort) espAbort.abort();
+    canvasEsp.style.display = "none";
+    imgEsp.style.display = "block";
   }
 
-  // Load from query params if provided: ?sat=...
-  (function loadFromQuery(){
-    try{
-      const qp = new URLSearchParams(location.search);
-      const s = qp.get('sat');
-      if(s){ imgSat.src = s; urlSat.value = s }
-    }catch(err){console.warn(err)}
-  })();
+  /* -------------------------------------------------------
+      EXTERNAL TP-LINK VIGI STREAM (MJPEG via POST)
+  ---------------------------------------------------------*/
 
-  // Initialize charts, then start data polling
-  initCharts();
+  let satReader = null;
+  let satAbort = null;
+  let satRunning = false;
+
+  // async function startSatStream() {
+  //   stopSatStream();
+  //   satRunning = true;
+
+  //   imgSat.style.display = "none";
+  //   canvasSat.style.display = "block";
+
+  //   try {
+  //     satAbort = new AbortController();
+  //     const resp = await fetch(`https://${CAM_HOST}/stream`, {
+  //       method: "POST",
+  //       headers: {
+  //         "Authorization": 'Digest username="admin", realm="TP-LINK IP-Camera", nonce="d5515fe7182e83cf10f311bb5c067434", uri="/stream", response="ff1a8a03174567284fd70de5e7baa19d", opaque="64943214654649846565646421", qop="auth", nc="00000001", cnonce="3gvk08q1svnzo6n7"',
+  //         "Content-Type": "multipart/mixed;boundary=--client-stream-boundary--"
+  //       },
+  //       body: SAT_PAYLOAD,
+  //       signal: satAbort.signal
+  //     });
+
+  //     if (!resp.ok || !resp.body) throw new Error("No SAT stream");
+
+  //     satReader = resp.body.getReader();
+  //     const ctx = canvasSat.getContext("2d");
+  //     let buffer = new Uint8Array();
+
+  //     while (satRunning) {
+  //       const chunk = await satReader.read();
+  //       if (chunk.done) throw new Error("Stream ended");
+  //       const { value } = chunk;
+
+  //       const merged = new Uint8Array(buffer.length + value.length);
+  //       merged.set(buffer);
+  //       merged.set(value, buffer.length);
+  //       buffer = merged;
+
+  //       const start = buffer.indexOf(0xFF);
+  //       if (start === -1) continue;
+  //       let end = -1;
+  //       for (let i = start; i < buffer.length - 1; i++) {
+  //         if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+  //           end = i + 1;
+  //           break;
+  //         }
+  //       }
+  //       if (end === -1) continue;
+
+  //       const frame = buffer.slice(start, end + 1);
+  //       buffer = buffer.slice(end + 1);
+
+  //       try {
+  //         const bitmap = await createImageBitmap(new Blob([frame], { type: "image/jpeg" }));
+  //         canvasSat.width = bitmap.width;
+  //         canvasSat.height = bitmap.height;
+  //         ctx.drawImage(bitmap, 0, 0);
+  //         bitmap.close();
+  //       } catch (e) {
+  //         console.log("SAT decode error:", e);
+  //       }
+  //     }
+
+  //   } catch (e) {
+  //     if (satRunning) {
+  //       console.warn("SAT stream dropped → reconnecting...");
+  //       setTimeout(startSatStream, 1500);
+  //     }
+  //   }
+  // }
+const canvasSat = document.getElementById('canvas-sat');
+const SAT_URL = `https://${CAM_HOST}/stream`;
+
+async function startSatStream() {
+  stopSatStream();
+  satRunning = true;
+  canvasSat.style.display = "block";
+  imgSat.style.display = "none";
+
+  try {
+    satAbort = new AbortController();
+    const resp = await fetch(SAT_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": "Basic " + btoa(`${CAM_LOGIN}:${CAM_PASSWORD}`),
+        "Content-Type": "multipart/form-data; boundary=client-stream-boundary"
+      },
+      body: SAT_PAYLOAD,
+      signal: satAbort.signal
+    });
+
+    if (!resp.ok || !resp.body) throw new Error("No SAT stream");
+
+    satReader = resp.body.getReader();
+    const ctx = canvasSat.getContext("2d");
+    let buffer = new Uint8Array();
+
+    while (satRunning) {
+      const chunk = await satReader.read();
+      if (chunk.done) throw new Error("Stream ended");
+      const { value } = chunk;
+
+      const merged = new Uint8Array(buffer.length + value.length);
+      merged.set(buffer);
+      merged.set(value, buffer.length);
+      buffer = merged;
+
+      const start = buffer.indexOf(0xFF);
+      if (start === -1) continue;
+      let end = -1;
+      for (let i = start; i < buffer.length - 1; i++) {
+        if (buffer[i] === 0xFF && buffer[i + 1] === 0xD9) {
+          end = i + 1;
+          break;
+        }
+      }
+      if (end === -1) continue;
+
+      const frame = buffer.slice(start, end + 1);
+      buffer = buffer.slice(end + 1);
+
+      try {
+        const bitmap = await createImageBitmap(new Blob([frame], { type: "image/jpeg" }));
+        canvasSat.width = bitmap.width;
+        canvasSat.height = bitmap.height;
+        ctx.drawImage(bitmap, 0, 0);
+        bitmap.close();
+      } catch (e) {
+        console.log("SAT decode error:", e);
+      }
+    }
+
+  } catch (e) {
+    if (satRunning) {
+      console.warn("SAT stream dropped → reconnecting...");
+      setTimeout(startSatStream, 1500);
+    }
+  }
+}
+
+function stopSatStream() {
+  satRunning = false;
+  if (satReader) satReader.cancel().catch(() => {});
+  if (satAbort) satAbort.abort();
+  imgSat.style.display = "block";
+  canvasSat.style.display = "none";
+}
+
+
+  /* -------------------------------------------------------
+      BUTTONS
+  ---------------------------------------------------------*/
+
+  btnSatStream.onclick = () => {
+    satRunning ? stopSatStream() : startSatStream();
+  };
+
+  btnMjpegStream.onclick = () => {
+    espRunning ? stopESPStream() : startESPStream();
+  };
+
+  /* -------------------------------------------------------
+      INIT
+  ---------------------------------------------------------*/
+
   startDataPolling();
 
-  // create initial log lines
-  appendLog('Панель запущена');
-  appendLog('Получение данных с робота...');
+  window.addEventListener("beforeunload", () => {
+    stopESPStream();
+    stopSatStream();
+  });
 
-  // clean up on unload
-  window.addEventListener('unload', ()=>{ stopESPStream(); stopDataPolling(); });
 })();
-
