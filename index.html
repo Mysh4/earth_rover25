@@ -37,11 +37,11 @@
           <div class="charts-grid">
             <div class="chart-card">
               <div class="chart-title">Temperature (°C)</div>
-              <canvas id="chart-temp"></canvas>
+              <canvas id="chart-temp" crossorigin="anonymous"></canvas>
             </div>
             <div class="chart-card">
               <div class="chart-title">Humidity (%)</div>
-              <canvas id="chart-humidity"></canvas>
+              <canvas id="chart-humidity" crossorigin="anonymous"></canvas>
             </div>
           </div>
         </section>
@@ -51,8 +51,9 @@
         <div class="top-camera">
   <div class="cam-header">External camera</div>
   <div class="cam-wrap">
-    <img id="img-sat" src="https://via.placeholder.com/800x450?text=Satellite+View" alt="Satellite view" />
-    <canvas id="canvas-sat" style="display:none"></canvas>
+    <iframe src="https://192.168.0.60" title="desc"></iframe>
+    <!-- <img id="img-sat" src="https://via.placeholder.com/800x450?text=Satellite+View" alt="Satellite view" />
+    <canvas id="canvas-sat" style="display:none"></canvas> -->
   </div>
 </div>
 

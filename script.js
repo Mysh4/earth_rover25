@@ -205,15 +205,8 @@
   const CAM_PASSWORD = "admin1";
   const CAM_HOST = "192.168.0.60";
 
-  const ESP32_URL = "http://192.168.0.165:82/stream";
-  const DATA_URL  = "http://192.168.0.165:80/getHM";
-
-  // SAT POST request payload
-  const SAT_PAYLOAD = `----client-stream-boundary--
-Content-Type: application/json
-Content-Length: 101
-
-{"type":"request","seq":1,"params":{"method":"get","preview":{"channels":[0],"resolutions":["vga"]}}}`;
+  const ESP32_URL = "http://192.168.0.120/stream";
+  const DATA_URL  = "http://192.168.0.120/getHM";
 
   const imgSat = document.getElementById('img-sat');
   const canvasEsp = document.getElementById('canvas-esp');
@@ -409,12 +402,14 @@ async function startSatStream() {
   canvasSat.style.display = "block";
   imgSat.style.display = "none";
 
+  const SAT_PAYLOAD = `{"type":"request","seq":1,"params":{"method":"get","preview":{"channels":[0],"resolutions":["vga"]}}}`;
+
   try {
     satAbort = new AbortController();
     const resp = await fetch(SAT_URL, {
       method: "POST",
       headers: {
-        "Authorization": 'Digest username="admin", realm="TP-LINK IP-Camera", nonce="d5515fe7182e83cf10f311bb5c067434", uri="/stream", response="ff1a8a03174567284fd70de5e7baa19d", opaque="64943214654649846565646421", qop="auth", nc="00000001", cnonce="3gvk08q1svnzo6n7"',
+        "Authorization": 'Digest username="admin", realm="TP-LINK IP-Camera", nonce="70d95434be7b46242378148cf8569c00", uri="/stream", response="e3a758a5aaea1f5b05adacb49861c00d", opaque="64943214654649846565646421", qop="auth", nc="00000001", cnonce="chm159n7afavvbdj"',
         "Content-Type": "multipart/mixed;boundary=--client-stream-boundary--"
       },
       body: SAT_PAYLOAD,
